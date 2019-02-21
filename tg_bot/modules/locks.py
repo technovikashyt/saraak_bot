@@ -1,4 +1,4 @@
-.import html
+import html
 from typing import Optional, List
 
 import telegram.ext as tg
