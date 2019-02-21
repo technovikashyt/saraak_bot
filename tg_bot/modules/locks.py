@@ -1,4 +1,4 @@
-import html
+.import html
 from typing import Optional, List
 
 import telegram.ext as tg
@@ -14,28 +14,28 @@ from tg_bot import dispatcher, SUDO_USERS, LOGGER
 from tg_bot.modules.disable import DisableAbleCommandHandler
 from tg_bot.modules.helper_funcs.chat_status import can_delete, is_user_admin, user_not_admin, user_admin, \
     bot_can_delete, is_bot_admin
+from tg_bot.modules.helper_funcs.filters import CustomFilters
 from tg_bot.modules.log_channel import loggable
 from tg_bot.modules.sql import users_sql
 
-LOCK_TYPES = {'stickers': Filters.sticker,
+LOCK_TYPES = {'sticker': Filters.sticker,
               'audio': Filters.audio,
               'voice': Filters.voice,
-              'documents': Filters.document & ~Filters.animation,
-              'videos': Filters.video,
-              'videonotes': Filters.video_note,
-              'contacts': Filters.contact,
-              'photos': Filters.photo,
-              'gifs': Filters.animation,
-              'urls': Filters.entity(MessageEntity.URL) | Filters.caption_entity(MessageEntity.URL),
+              'document': Filters.document & CustomFilters.mime_type("application/vnd.android.package-archive"),
+              'video': Filters.video,
+              'contact': Filters.contact,
+              'photo': Filters.photo,
+              'gif': Filters.document & CustomFilters.mime_type("video/mp4"),
+              'url': Filters.entity(MessageEntity.URL) | Filters.caption_entity(MessageEntity.URL),
               'bots': Filters.status_update.new_chat_members,
-              'forwards': Filters.forwarded,
-              'games': Filters.game,
-              'locations': Filters.location,
+              'forward': Filters.forwarded,
+              'game': Filters.game,
+              'location': Filters.location,
               }
 
-GIF = Filters.animation
+GIF = Filters.document & CustomFilters.mime_type("video/mp4")
 OTHER = Filters.game | Filters.sticker | GIF
-MEDIA = Filters.audio | Filters.document | Filters.video | Filters.video_note | Filters.voice | Filters.photo
+MEDIA = Filters.audio | Filters.document & CustomFilters.mime_type("application/vnd.android.package-archive") | Filters.video | Filters.voice | Filters.photo
 MESSAGES = Filters.text | Filters.contact | Filters.location | Filters.venue | Filters.command | MEDIA | OTHER
 PREVIEWS = Filters.entity("url")
 
@@ -110,7 +110,7 @@ def lock(bot: Bot, update: Update, args: List[str]) -> str:
 
                 return "<b>{}:</b>" \
                        "\n#LOCK" \
-                       "\n<b>Admin:</b> {}" \
+                       "\n<b>• Admin:</b> {}" \
                        "\nLocked <code>{}</code>.".format(html.escape(chat.title),
                                                           mention_html(user.id, user.first_name), args[0])
 
@@ -123,7 +123,7 @@ def lock(bot: Bot, update: Update, args: List[str]) -> str:
                 message.reply_text("Locked {} for all non-admins!".format(args[0]))
                 return "<b>{}:</b>" \
                        "\n#LOCK" \
-                       "\n<b>Admin:</b> {}" \
+                       "\n<b>• Admin:</b> {}" \
                        "\nLocked <code>{}</code>.".format(html.escape(chat.title),
                                                           mention_html(user.id, user.first_name), args[0])
 
@@ -150,7 +150,7 @@ def unlock(bot: Bot, update: Update, args: List[str]) -> str:
                 message.reply_text("Unlocked {} for everyone!".format(args[0]))
                 return "<b>{}:</b>" \
                        "\n#UNLOCK" \
-                       "\n<b>Admin:</b> {}" \
+                       "\n<b>• Admin:</b> {}" \
                        "\nUnlocked <code>{}</code>.".format(html.escape(chat.title),
                                                             mention_html(user.id, user.first_name), args[0])
 
@@ -160,16 +160,12 @@ def unlock(bot: Bot, update: Update, args: List[str]) -> str:
                 members = users_sql.get_chat_members(chat.id)
                 if args[0] == "messages":
                     unrestr_members(bot, chat.id, members, media=False, other=False, previews=False)
-
                 elif args[0] == "media":
                     unrestr_members(bot, chat.id, members, other=False, previews=False)
-
                 elif args[0] == "other":
                     unrestr_members(bot, chat.id, members, previews=False)
-
                 elif args[0] == "previews":
                     unrestr_members(bot, chat.id, members)
-
                 elif args[0] == "all":
                     unrestr_members(bot, chat.id, members, True, True, True, True)
                 """
@@ -250,7 +246,6 @@ def build_lock_message(chat_id):
                    "\n - voice = `{}`" \
                    "\n - document = `{}`" \
                    "\n - video = `{}`" \
-                   "\n - videonote = `{}`" \
                    "\n - contact = `{}`" \
                    "\n - photo = `{}`" \
                    "\n - gif = `{}`" \
@@ -259,7 +254,7 @@ def build_lock_message(chat_id):
                    "\n - forward = `{}`" \
                    "\n - game = `{}`" \
                    "\n - location = `{}`".format(locks.sticker, locks.audio, locks.voice, locks.document,
-                                                 locks.video, locks.videonote, locks.contact, locks.photo, locks.gif, locks.url,
+                                                 locks.video, locks.contact, locks.photo, locks.gif, locks.url,
                                                  locks.bots, locks.forward, locks.game, locks.location)
         if restr:
             res += "\n - messages = `{}`" \
@@ -291,12 +286,10 @@ def __chat_settings__(chat_id, user_id):
 
 __help__ = """
  - /locktypes: a list of possible locktypes
-
 *Admin only:*
  - /lock <type>: lock items of a certain type (not available in private)
  - /unlock <type>: unlock items of a certain type (not available in private)
  - /locks: the current list of locks in this chat.
-
 Locks can be used to restrict a group's users.
 eg:
 Locking urls will auto-delete all messages with urls which haven't been whitelisted, locking stickers will delete all \
