@@ -15,6 +15,7 @@ telegram
 zalgo_text
 feedparser
 py_translator
+pynewtonmath
 bs4
 lxml
 pyowm
