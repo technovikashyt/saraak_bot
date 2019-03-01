@@ -19,7 +19,7 @@ from tg_bot.modules.helper_funcs.chat_status import is_user_admin
 from tg_bot.modules.helper_funcs.misc import paginate_modules
 
 PM_START_TEXT = """
-Hi {}, my name is {}! If you have any questions on how to use me, read /help .
+Hi {}, my name is {}! If you have any questions on how to use me, read /help - and then join @SaraakNews.
 
 I'm a group manager bot maintained by [This Guy](tg://user?id={}). 
 and am fully Open-source you can find me [here](github.com/adi19v/saraak_bot)!
