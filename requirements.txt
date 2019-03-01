@@ -22,3 +22,4 @@ pyowm
 spongemock
 geopy
 PyLyrics
+Pillow>=4.2.0
