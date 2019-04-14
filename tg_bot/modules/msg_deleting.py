@@ -10,7 +10,7 @@ from telegram.utils.helpers import mention_html
 from tg_bot import dispatcher, LOGGER
 from tg_bot.modules.helper_funcs.chat_status import user_admin, can_delete
 from tg_bot.modules.log_channel import loggable
-
+from tg_bot.modules.disable import DisableAbleCommandHandler
 
 @run_async
 @user_admin
@@ -22,10 +22,13 @@ def purge(bot: Bot, update: Update, args: List[str]) -> str:
         chat = update.effective_chat  # type: Optional[Chat]
         if can_delete(chat, bot.id):
             message_id = msg.reply_to_message.message_id
+            delete_to = msg.message_id - 1
             if args and args[0].isdigit():
-                delete_to = message_id + int(args[0])
-            else:
-                delete_to = msg.message_id - 1
+                new_del = message_id + int(args[0])
+                # No point deleting messages which haven't been written yet.
+                if new_del < delete_to:
+                    delete_to = new_del
+
             for m_id in range(delete_to, message_id - 1, -1):  # Reverse iteration over message ids
                 try:
                     bot.deleteMessage(chat.id, m_id)
@@ -90,8 +93,8 @@ __help__ = """
 
 __mod_name__ = "Purges"
 
-DELETE_HANDLER = CommandHandler("del", del_message, filters=Filters.group)
-PURGE_HANDLER = CommandHandler("purge", purge, filters=Filters.group, pass_args=True)
+DELETE_HANDLER = DisableAbleCommandHandler("del", del_message, filters=Filters.group)
+PURGE_HANDLER = DisableAbleCommandHandler("purge", purge, filters=Filters.group, pass_args=True)
 
 dispatcher.add_handler(DELETE_HANDLER)
 dispatcher.add_handler(PURGE_HANDLER)
