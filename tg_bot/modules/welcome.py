@@ -16,6 +16,7 @@ from tg_bot.modules.helper_funcs.msg_types import get_welcome_type
 from tg_bot.modules.helper_funcs.string_handling import markdown_parser, \
     escape_invalid_curly_brackets
 from tg_bot.modules.log_channel import loggable
+from tg_bot.modules.disable import DisableAbleCommandHandler
 
 VALID_WELCOME_FORMATTERS = ['first', 'last', 'fullname', 'username', 'id', 'count', 'chatname', 'mention']
 
@@ -34,7 +35,7 @@ ENUM_FUNC_MAP = {
 # do not async
 def send(update, message, keyboard, backup_message):
     try:
-        msg = update.effective_message.reply_text(message, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard)
+        msg = update.effective_message.reply_text(message, parse_mode=ParseMode.MARKDOWN, reply_markup=keyboard, disable_web_page_preview=True)
     except IndexError:
         msg = update.effective_message.reply_text(markdown_parser(backup_message +
                                                                   "\nNote: the current message was "
@@ -115,7 +116,7 @@ def new_member(bot: Bot, update: Update):
                     else:
                         fullname = first_name
                     count = chat.get_members_count()
-                    mention = mention_markdown(new_mem.id, first_name)
+                    mention = mention_markdown(new_mem.id, escape_markdown(first_name))
                     if new_mem.username:
                         username = "@" + escape_markdown(new_mem.username)
                     else:
@@ -151,7 +152,7 @@ def new_member(bot: Bot, update: Update):
 
                 #Add "I'm not bot button if enabled hard security"
                 if sql.welcome_security(chat.id) == "hard":
-                    update.effective_message.reply_text("Hi {}, click on button below to prove you're human.".format(new_mem.first_name), 
+                    update.effective_message.reply_text("Hi {}, click on button below for been unmuted.".format(new_mem.first_name), 
                          reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(text="I'm not a bot!", 
                          callback_data="check_bot_({})".format(new_mem.id)) ]]))
                     #Mute user
@@ -188,7 +189,7 @@ def check_bot_button(bot: Bot, update: Update):
         bot.deleteMessage(chat.id, message.message_id)
     else:
         print("NO")
-        query.answer(text="You're not a new user!")
+        query.answer(text="You not a new user!")
     #TODO need kick users after 2 hours and remove message 
 
 @run_async
@@ -272,7 +273,7 @@ def welcome(bot: Bot, update: Update, args: List[str]):
                 ENUM_FUNC_MAP[welcome_type](chat.id, welcome_m)
 
             else:
-                ENUM_FUNC_MAP[welcome_type](chat.id, welcome_m, parse_mode=ParseMode.MARKDOWN)
+                ENUM_FUNC_MAP[welcome_type](chat.id, welcome_m, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
     elif len(args) >= 1:
         if args[0].lower() in ("on", "yes"):
@@ -318,7 +319,7 @@ def goodbye(bot: Bot, update: Update, args: List[str]):
                 ENUM_FUNC_MAP[goodbye_type](chat.id, goodbye_m)
 
             else:
-                ENUM_FUNC_MAP[goodbye_type](chat.id, goodbye_m, parse_mode=ParseMode.MARKDOWN)
+                ENUM_FUNC_MAP[goodbye_type](chat.id, goodbye_m, parse_mode=ParseMode.MARKDOWN, disable_web_page_preview=True)
 
     elif len(args) >= 1:
         if args[0].lower() in ("on", "yes"):
@@ -459,10 +460,10 @@ def security(bot: Bot, update: Update, args: List[str]) -> str:
             update.effective_message.reply_text("Disabled welcome security")
         elif(var == "soft"):
             sql.set_welcome_security(chat.id, "soft")
-            update.effective_message.reply_text("I will restrict user's permission to send media for 24 hours")
+            update.effective_message.reply_text("I will restrict user to send media for 24 hours")
         elif(var == "hard"):
             sql.set_welcome_security(chat.id, "hard")
-            update.effective_message.reply_text("New users will be muted if they do not click on the button")
+            update.effective_message.reply_text("I will mute user when he don't click on button")
         else:
             update.effective_message.reply_text("Please enter `off`/`no`/`soft`/`hard`!", parse_mode=ParseMode.MARKDOWN)
     else:
@@ -480,7 +481,7 @@ def cleanservice(bot: Bot, update: Update, args: List[str]) -> str:
             print(var)
             if (var == "no" or var == "off"):
                 sql.set_clean_service(chat.id, False)
-                update.effective_message.reply_text("I'll leave service messages")
+                update.effective_message.reply_text("I leave service messages")
             elif(var == "yes" or var == "on"):
                 sql.set_clean_service(chat.id, True)
                 update.effective_message.reply_text("I will clean service messages")
@@ -536,7 +537,6 @@ go. Note that group ids are usually preceded by a `-` sign; this is required, so
 remove it. \
 If you're feeling fun, you can even set images/gifs/videos/voice messages as the welcome message by \
 replying to the desired media, and calling /setwelcome.
-
 *Admin only:*
  - /welcome <on/off>: enable/disable welcome messages.
  - /welcome: shows current welcome settings.
@@ -548,7 +548,7 @@ replying to the desired media, and calling /setwelcome.
  - /resetgoodbye: reset to the default goodbye message.
  - /cleanwelcome <on/off>: On new member, try to delete the previous welcome message to avoid spamming the chat.
  - /cleanservice <on/off/yes/no>: deletes all service message; those are the annoying "x joined the group" you see when people join.
- - /welcomesecurity <off/soft/hard>: soft - restrict user's permission to send media files for 24 hours, hard - restict user's permission to send messages until they click on the button \"I'm not a bot\"
+ - /welcomesecurity <off/soft/hard>: soft - restrict user send media files for 24 hours, hard - restict user send messages while him don't click on button \"I'm not bot\"
 """.format(dispatcher.bot.username)
 
 
@@ -556,16 +556,16 @@ __mod_name__ = "Welcomes/Goodbyes"
 
 NEW_MEM_HANDLER = MessageHandler(Filters.status_update.new_chat_members, new_member)
 LEFT_MEM_HANDLER = MessageHandler(Filters.status_update.left_chat_member, left_member)
-WELC_PREF_HANDLER = CommandHandler("welcome", welcome, pass_args=True, filters=Filters.group)
-GOODBYE_PREF_HANDLER = CommandHandler("goodbye", goodbye, pass_args=True, filters=Filters.group)
-SET_WELCOME = CommandHandler("setwelcome", set_welcome, filters=Filters.group)
-SET_GOODBYE = CommandHandler("setgoodbye", set_goodbye, filters=Filters.group)
-RESET_WELCOME = CommandHandler("resetwelcome", reset_welcome, filters=Filters.group)
-RESET_GOODBYE = CommandHandler("resetgoodbye", reset_goodbye, filters=Filters.group)
-CLEAN_WELCOME = CommandHandler("cleanwelcome", clean_welcome, pass_args=True, filters=Filters.group)
+WELC_PREF_HANDLER = DisableAbleCommandHandler("welcome", welcome, pass_args=True, filters=Filters.group)
+GOODBYE_PREF_HANDLER = DisableAbleCommandHandler("goodbye", goodbye, pass_args=True, filters=Filters.group)
+SET_WELCOME = DisableAbleCommandHandler("setwelcome", set_welcome, filters=Filters.group)
+SET_GOODBYE = DisableAbleCommandHandler("setgoodbye", set_goodbye, filters=Filters.group)
+RESET_WELCOME = DisableAbleCommandHandler("resetwelcome", reset_welcome, filters=Filters.group)
+RESET_GOODBYE = DisableAbleCommandHandler("resetgoodbye", reset_goodbye, filters=Filters.group)
+CLEAN_WELCOME = DisableAbleCommandHandler("cleanwelcome", clean_welcome, pass_args=True, filters=Filters.group)
 
-SECURITY_HANDLER = CommandHandler("welcomesecurity", security, pass_args=True, filters=Filters.group)
-CLEAN_SERVICE_HANDLER = CommandHandler("cleanservice", cleanservice, pass_args=True, filters=Filters.group)
+SECURITY_HANDLER = DisableAbleCommandHandler("welcomesecurity", security, pass_args=True, filters=Filters.group)
+CLEAN_SERVICE_HANDLER = DisableAbleCommandHandler("cleanservice", cleanservice, pass_args=True, filters=Filters.group)
 
 help_callback_handler = CallbackQueryHandler(check_bot_button, pattern=r"check_bot_")
 
@@ -582,4 +582,3 @@ dispatcher.add_handler(SECURITY_HANDLER)
 dispatcher.add_handler(CLEAN_SERVICE_HANDLER)
 
 dispatcher.add_handler(help_callback_handler)
-
