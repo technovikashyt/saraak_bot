@@ -10,6 +10,7 @@ from tg_bot import dispatcher
 from tg_bot.modules.helper_funcs.chat_status import is_user_admin, user_admin, can_restrict
 from tg_bot.modules.log_channel import loggable
 from tg_bot.modules.sql import antiflood_sql as sql
+from tg_bot.modules.disable import DisableAbleCommandHandler
 
 FLOOD_GROUP = 3
 
@@ -34,22 +35,22 @@ def check_flood(bot: Bot, update: Update) -> str:
         return ""
 
     try:
-        chat.kick_member(user.id)
+        bot.restrict_chat_member(chat.id, user.id, can_send_messages=False)
         msg.reply_text("I like to leave the flooding to natural disasters. But you, you were just a "
-                       "disappointment. Get out.")
+                       "disappointment. *Muted*!")
 
         return "<b>{}:</b>" \
-               "\n#BANNED" \
+               "\n#MUTED" \
                "\n<b>User:</b> {}" \
                "\nFlooded the group.".format(html.escape(chat.title),
                                              mention_html(user.id, user.first_name))
 
     except BadRequest:
-        msg.reply_text("I can't kick people here, give me permissions first! Until then, I'll disable antiflood.")
+        msg.reply_text("I can't mute people here, give me permissions first! Until then, I'll disable antiflood.")
         sql.set_flood(chat.id, 0)
         return "<b>{}:</b>" \
                "\n#INFO" \
-               "\nDon't have kick permissions, so automatically disabled antiflood.".format(chat.title)
+               "\nDon't have mute permissions, so automatically disabled antiflood.".format(chat.title)
 
 
 @run_async
@@ -105,7 +106,7 @@ def flood(bot: Bot, update: Update):
         update.effective_message.reply_text("I'm not currently enforcing flood control!")
     else:
         update.effective_message.reply_text(
-            "I'm currently banning users if they send more than {} consecutive messages.".format(limit))
+            "I'm currently Muting users if they send more than {} consecutive messages.".format(limit))
 
 
 def __migrate__(old_chat_id, new_chat_id):
@@ -122,7 +123,6 @@ def __chat_settings__(chat_id, user_id):
 
 __help__ = """
  - /flood: Get the current flood control setting
-
 *Admin only:*
  - /setflood <int/'no'/'off'>: enables or disables flood control
 """
@@ -130,8 +130,8 @@ __help__ = """
 __mod_name__ = "AntiFlood"
 
 FLOOD_BAN_HANDLER = MessageHandler(Filters.all & ~Filters.status_update & Filters.group, check_flood)
-SET_FLOOD_HANDLER = CommandHandler("setflood", set_flood, pass_args=True, filters=Filters.group)
-FLOOD_HANDLER = CommandHandler("flood", flood, filters=Filters.group)
+SET_FLOOD_HANDLER = DisableAbleCommandHandler("setflood", set_flood, pass_args=True, filters=Filters.group)
+FLOOD_HANDLER = DisableAbleCommandHandler("flood", flood, filters=Filters.group)
 
 dispatcher.add_handler(FLOOD_BAN_HANDLER, FLOOD_GROUP)
 dispatcher.add_handler(SET_FLOOD_HANDLER)
